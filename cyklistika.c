@@ -3,7 +3,7 @@
 #include <string.h>
 #include <time.h>
 
-#define INPUT "CYKLISTIKA.TXT"
+#define INPUT "cyklistika.txt"
 #define OUTPUT "vysledkova_listina.txt"
 #define SIZE 200
 #define DELIM ";,:()\n"
