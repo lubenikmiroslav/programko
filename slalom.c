@@ -2,28 +2,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define INPUT "ZAVODNICI.TXT"
+#define INPUT "zavodnici.txt"
 #define OUTPUT "vysledkova_listina.txt"
-#define SIZE 300
+#define SIZE 200
 
 typedef struct {
     int number;
     char surname[30];
-    int terrain;
-    int firstRun[10];
-    int secondRun[10];
-    int sumFirst;
-    int sumSecond;
-    int total;
+    char name[30];
+    float firstRun;
+    float secondRun;
+    float totalTime;
+    float timeLoss;
 } RACER;
-
-int sumRun(int *run) {
-    int sum = 0;
-    for (int i = 0; i < 10; i++) {
-        sum += run[i];
-    }
-    return sum;
-}
 
 RACER *readFile(int *count) {
     FILE *fr = fopen(INPUT, "r");
@@ -46,22 +37,14 @@ RACER *readFile(int *count) {
         }
         racers = temp;
 
-        char *pch = strtok(line, " \n");
-        int field = 0;
-        while (pch) {
-            if (field == 0) racers[i].number = atoi(pch);
-            else if (field == 1) strcpy(racers[i].surname, pch);
-            else if (field == 2) racers[i].terrain = atoi(pch);
-            else if (field >= 3 && field < 13) racers[i].firstRun[field - 3] = atoi(pch);
-            else if (field >= 13 && field < 23) racers[i].secondRun[field - 13] = atoi(pch);
-            pch = strtok(NULL, " \n");
-            field++;
-        }
+        sscanf(line, "%d %s %s %f %f",
+               &racers[i].number,
+               racers[i].surname,
+               racers[i].name,
+               &racers[i].firstRun,
+               &racers[i].secondRun);
 
-        racers[i].sumFirst = sumRun(racers[i].firstRun);
-        racers[i].sumSecond = sumRun(racers[i].secondRun);
-        racers[i].total = racers[i].sumFirst + racers[i].sumSecond;
-
+        racers[i].totalTime = racers[i].firstRun + racers[i].secondRun;
         i++;
     }
 
@@ -73,10 +56,34 @@ RACER *readFile(int *count) {
 void printStartList(RACER *racers, int count) {
     printf("S T A R T O V N I   L I S T I N A - S L A L O M   Ž E N Y\n");
     printf("--------------------------------------------------------\n");
-    printf("startovni cislo | prijmeni\n");
+    printf("startovni cislo prijmeni jmeno 1.kolo 2.kolo\n");
     printf("--------------------------------------------------------\n");
     for (int i = 0; i < count; i++) {
-        printf("%15d | %-12s\n", racers[i].number, racers[i].surname);
+        printf("%6d %12s %12s %.2f %.2f\n",
+               racers[i].number,
+               racers[i].surname,
+               racers[i].name,
+               racers[i].firstRun,
+               racers[i].secondRun);
+    }
+}
+
+void sortByTotalTime(RACER *racers, int count) {
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            if (racers[i].totalTime > racers[j].totalTime) {
+                RACER temp = racers[i];
+                racers[i] = racers[j];
+                racers[j] = temp;
+            }
+        }
+    }
+}
+
+void calculateTimeLoss(RACER *racers, int count) {
+    float leaderTime = racers[0].totalTime;
+    for (int i = 0; i < count; i++) {
+        racers[i].timeLoss = racers[i].totalTime - leaderTime;
     }
 }
 
@@ -87,19 +94,20 @@ void saveResults(RACER *racers, int count) {
         return;
     }
 
-    fprintf(fw, "V Y S L E D K O V A   L I S T I N A - S L A L O M   Ž E N Y\n");
-    fprintf(fw, "------------------------------------------------------------\n");
-    fprintf(fw, "start. | prijmeni     | 1.kolo | 2.kolo | celkem | trat\n");
-    fprintf(fw, "------------------------------------------------------------\n");
+    fprintf(fw, "V Y S L E D K O V A   L I S T I N A\n");
+    fprintf(fw, "-------------------------------------------------------------\n");
+    fprintf(fw, "poradi(prijmeni jmeno) 1.kolo 2.kolo celkem ztrata\n");
+    fprintf(fw, "-------------------------------------------------------------\n");
 
     for (int i = 0; i < count; i++) {
-        fprintf(fw, "%6d | %-12s | %7d | %7d | %7d | %4d\n",
-                racers[i].number,
+        fprintf(fw, "%2d %12s %12s %.2f %.2f %.2f %.2f\n",
+                i + 1,
                 racers[i].surname,
-                racers[i].sumFirst,
-                racers[i].sumSecond,
-                racers[i].total,
-                racers[i].terrain);
+                racers[i].name,
+                racers[i].firstRun,
+                racers[i].secondRun,
+                racers[i].totalTime,
+                racers[i].timeLoss);
     }
 
     fclose(fw);
@@ -111,6 +119,8 @@ int main(void) {
     if (!racers) return 1;
 
     printStartList(racers, count);
+    sortByTotalTime(racers, count);
+    calculateTimeLoss(racers, count);
     saveResults(racers, count);
 
     free(racers);
