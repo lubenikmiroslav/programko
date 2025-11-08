@@ -3,210 +3,183 @@
 #include <string.h>
 #include <time.h>
 
-#define INPUT "beh.txt"
+#define INPUT "BEH.TXT"
 #define OUTPUT "vysledkova_listina.txt"
 #define SIZE 200
 
 typedef struct {
-    int number;
-    char surname[30];
-    char name[30];
-    int birthYear;
-    char country[5];
-    char club[50];
-    int hour;
-    int min;
-    int sec;
-    int totalSeconds;
-    int age;
-    int timeLoss;
-} RUNNER;
+    int cislo;
+    char prijmeni[30];
+    char jmeno[30];
+    char narozen[15];
+    char stat[5];
+    char klub[50];
+    char cas[10];
+    int sekundy;
+    int ztrata;
+} ZAVODNIK;
 
-int timeToSeconds(int h, int m, int s) {
+int casNaSekundy(char *cas) {
+    int h, m, s;
+    sscanf(cas, "%d:%d:%d", &h, &m, &s);
     return h * 3600 + m * 60 + s;
 }
 
-void secondsToTime(int total, int *h, int *m, int *s) {
-    *h = total / 3600;
-    *m = (total % 3600) / 60;
-    *s = total % 60;
+void sekundyNaCas(int sekundy, char *out) {
+    int h = sekundy / 3600;
+    int m = (sekundy % 3600) / 60;
+    int s = sekundy % 60;
+    sprintf(out, "%02d:%02d:%02d", h, m, s);
 }
 
-int calculateAge(int birthYear) {
-    time_t now = time(NULL);
-    struct tm *local = localtime(&now);
-    return local->tm_year + 1900 - birthYear;
+int rokNarozeni(char *datum) {
+    int den, mesic, rok;
+    sscanf(datum, "%d.%d.%d", &den, &mesic, &rok);
+    return rok;
 }
 
-RUNNER *readFile(int *count) {
+ZAVODNIK *nactiSoubor(int *pocet) {
     FILE *fr = fopen(INPUT, "r");
     if (!fr) {
-        printf("Nelze otevřít vstupní soubor %s\n", INPUT);
+        printf("Chyba: nelze otevrit soubor %s\n", INPUT);
         return NULL;
     }
 
-    RUNNER *runners = NULL;
-    char line[SIZE];
+    ZAVODNIK *zavodnici = NULL;
+    char radek[SIZE];
     int i = 0;
 
-    while (fgets(line, SIZE, fr)) {
-        RUNNER *temp = realloc(runners, (i + 1) * sizeof(RUNNER));
-        if (!temp) {
-            free(runners);
-            printf("Chyba alokace paměti\n");
+    while (fgets(radek, SIZE, fr)) {
+        if (strchr(radek, ';') == NULL) continue;
+
+        zavodnici = realloc(zavodnici, (i + 1) * sizeof(ZAVODNIK));
+        if (!zavodnici) {
+            printf("Chyba alokace pameti\n");
             fclose(fr);
             return NULL;
         }
-        runners = temp;
 
-        sscanf(line, "%d %s %s %d %s %[^\n] %d:%d:%d",
-               &runners[i].number,
-               runners[i].surname,
-               runners[i].name,
-               &runners[i].birthYear,
-               runners[i].country,
-               runners[i].club,
-               &runners[i].hour,
-               &runners[i].min,
-               &runners[i].sec);
+        sscanf(radek, "%d;%[^;];%[^;];%[^;];%[^;];%[^;];%s",
+               &zavodnici[i].cislo,
+               zavodnici[i].prijmeni,
+               zavodnici[i].jmeno,
+               zavodnici[i].narozen,
+               zavodnici[i].stat,
+               zavodnici[i].klub,
+               zavodnici[i].cas);
 
-        runners[i].totalSeconds = timeToSeconds(runners[i].hour, runners[i].min, runners[i].sec);
-        runners[i].age = calculateAge(runners[i].birthYear);
+        zavodnici[i].sekundy = casNaSekundy(zavodnici[i].cas);
         i++;
     }
 
     fclose(fr);
-    *count = i;
-    return runners;
+    *pocet = i;
+    return zavodnici;
 }
 
-void printStartList(RUNNER *runners, int count) {
-    printf("S T A R T O V N Í   L I S T I N A – M A R A T O N\n");
-    printf("-------------------------------------------------------------\n");
-    printf("číslo  příjmení     jméno        naroz.  stát  klub                     čas\n");
-    printf("-------------------------------------------------------------\n");
-    for (int i = 0; i < count; i++) {
-        printf("%5d  %-12s %-12s %4d   %-4s  %-25s %02d:%02d:%02d\n",
-               runners[i].number,
-               runners[i].surname,
-               runners[i].name,
-               runners[i].birthYear,
-               runners[i].country,
-               runners[i].club,
-               runners[i].hour,
-               runners[i].min,
-               runners[i].sec);
+void vypisStartovniListinu(ZAVODNIK *z, int pocet) {
+    printf("S T A R T O V N I   L I S T I N A - M A R A T O N\n");
+    printf("------------------------------------------------------------\n");
+    printf("cislo prijmeni jmeno narozen stat klub cas\n");
+    printf("------------------------------------------------------------\n");
+
+    for (int i = 0; i < pocet; i++) {
+        printf("%4d %-12s %-12s %-12s %-4s %-30s %s\n",
+               z[i].cislo, z[i].prijmeni, z[i].jmeno, z[i].narozen, z[i].stat, z[i].klub, z[i].cas);
     }
+    printf("------------------------------------------------------------\n");
+    printf("Celkovy pocet zavodniku je: %d\n", pocet);
 }
 
-int countCzechs(RUNNER *runners, int count) {
-    int czechs = 0;
-    for (int i = 0; i < count; i++) {
-        if (strcmp(runners[i].country, "CZE") == 0)
-            czechs++;
+void nejstarsiZavodnik(ZAVODNIK *z, int pocet) {
+    int minRok = 3000;
+    int idx = 0;
+
+    for (int i = 0; i < pocet; i++) {
+        int rok = rokNarozeni(z[i].narozen);
+        if (rok < minRok) {
+            minRok = rok;
+            idx = i;
+        }
     }
-    return czechs;
+
+    time_t t = time(NULL);
+    struct tm *now = localtime(&t);
+    int vek = now->tm_year + 1900 - minRok;
+
+    printf("Nejstarsi zavodnik je %s %s, nar. %s, vek %d let.\n",
+           z[idx].jmeno, z[idx].prijmeni, z[idx].narozen, vek);
 }
 
-RUNNER findOldest(RUNNER *runners, int count) {
-    int oldest = 0;
-    for (int i = 1; i < count; i++) {
-        if (runners[i].birthYear < runners[oldest].birthYear)
-            oldest = i;
+void ceskyZavodnici(ZAVODNIK *z, int pocet) {
+    int cz = 0;
+    for (int i = 0; i < pocet; i++) {
+        if (strcmp(z[i].stat, "CZE") == 0)
+            cz++;
     }
-    return runners[oldest];
+    printf("Pocet ceskych zavodniku: %d\n", cz);
 }
 
-float averageAge(RUNNER *runners, int count) {
-    int sum = 0;
-    for (int i = 0; i < count; i++) {
-        sum += runners[i].age;
-    }
-    return (float)sum / count;
-}
-
-int countSurnameStartsWith(RUNNER *runners, int count, char letter, int ageLimit) {
-    int total = 0;
-    for (int i = 0; i < count; i++) {
-        if (runners[i].surname[0] == letter && runners[i].age > ageLimit)
-            total++;
-    }
-    return total;
-}
-
-void sortByTime(RUNNER *runners, int count) {
-    for (int i = 0; i < count - 1; i++) {
-        for (int j = i + 1; j < count; j++) {
-            if (runners[i].totalSeconds > runners[j].totalSeconds) {
-                RUNNER temp = runners[i];
-                runners[i] = runners[j];
-                runners[j] = temp;
+void seradPodleCasu(ZAVODNIK *z, int pocet) {
+    for (int i = 0; i < pocet - 1; i++) {
+        for (int j = i + 1; j < pocet; j++) {
+            if (z[i].sekundy > z[j].sekundy) {
+                ZAVODNIK tmp = z[i];
+                z[i] = z[j];
+                z[j] = tmp;
             }
         }
     }
 }
 
-void calculateLosses(RUNNER *runners, int count) {
-    int leaderTime = runners[0].totalSeconds;
-    for (int i = 0; i < count; i++) {
-        runners[i].timeLoss = runners[i].totalSeconds - leaderTime;
+void vypocetZtrat(ZAVODNIK *z, int pocet) {
+    int vedouci = z[0].sekundy;
+    for (int i = 0; i < pocet; i++) {
+        z[i].ztrata = z[i].sekundy - vedouci;
     }
 }
 
-void saveResults(RUNNER *runners, int count) {
+void ulozVysledky(ZAVODNIK *z, int pocet) {
     FILE *fw = fopen(OUTPUT, "w");
     if (!fw) {
-        printf("Nelze otevřít výstupní soubor %s\n", OUTPUT);
+        printf("Nelze otevrit soubor %s\n", OUTPUT);
         return;
     }
 
-    fprintf(fw, "V Ý S L E D K O V Á   L I S T I N A – M A R A T O N\n");
-    fprintf(fw, "-------------------------------------------------------------\n");
-    fprintf(fw, "pořadí | číslo | příjmení | jméno | narozen | stát | klub | čas | ztráta\n");
-    fprintf(fw, "-------------------------------------------------------------\n");
+    fprintf(fw, "V Y S L E D K O V A   L I S T I N A - M A R A T O N\n");
+    fprintf(fw, "------------------------------------------------------------\n");
+    fprintf(fw, "poradi cislo prijmeni jmeno narozen stat klub cas ztrata\n");
+    fprintf(fw, "------------------------------------------------------------\n");
 
-    for (int i = 0; i < count; i++) {
-        int h, m, s;
-        secondsToTime(runners[i].totalSeconds, &h, &m, &s);
-        int lh, lm, ls;
-        secondsToTime(runners[i].timeLoss, &lh, &lm, &ls);
+    for (int i = 0; i < pocet; i++) {
+        char ztrataCas[10];
+        if (z[i].ztrata == 0)
+            strcpy(ztrataCas, "00:00:00");
+        else
+            sekundyNaCas(z[i].ztrata, ztrataCas);
 
-        fprintf(fw, "%6d | %5d | %-10s | %-10s | %4d | %-4s | %-20s | %02d:%02d:%02d | +%02d:%02d:%02d\n",
-                i + 1,
-                runners[i].number,
-                runners[i].surname,
-                runners[i].name,
-                runners[i].birthYear,
-                runners[i].country,
-                runners[i].club,
-                h, m, s,
-                lh, lm, ls);
+        fprintf(fw, "%2d. %4d %-12s %-12s %-12s %-4s %-25s %8s +%s\n",
+                i + 1, z[i].cislo, z[i].prijmeni, z[i].jmeno,
+                z[i].narozen, z[i].stat, z[i].klub, z[i].cas, ztrataCas);
     }
 
     fclose(fw);
+    printf("Soubor %s byl ulozen.\n", OUTPUT);
 }
 
 int main(void) {
-    int count;
-    RUNNER *runners = readFile(&count);
-    if (!runners) return 1;
+    int pocet;
+    ZAVODNIK *zavodnici = nactiSoubor(&pocet);
+    if (!zavodnici) return 1;
 
-    printStartList(runners, count);
-    printf("\nCelkový počet závodníků: %d\n", count);
-    printf("Počet českých závodníků: %d\n", countCzechs(runners, count));
+    vypisStartovniListinu(zavodnici, pocet);
+    nejstarsiZavodnik(zavodnici, pocet);
+    ceskyZavodnici(zavodnici, pocet);
 
-    RUNNER oldest = findOldest(runners, count);
-    printf("Nejstarší závodník je %s %s narozen v roce %d. Je mu %d let.\n",
-           oldest.surname, oldest.name, oldest.birthYear, oldest.age);
+    seradPodleCasu(zavodnici, pocet);
+    vypocetZtrat(zavodnici, pocet);
+    ulozVysledky(zavodnici, pocet);
 
-    printf("Průměrný věk závodníků: %.2f\n", averageAge(runners, count));
-    printf("Počet závodníků s příjmením na 'K': %d\n", countSurnameStartsWith(runners, count, 'K', 0));
-    printf("Počet závodníků s příjmením na 'K' a věkem > 40: %d\n", countSurnameStartsWith(runners, count, 'K', 40));
-
-    sortByTime(runners, count);
-    calculateLosses(runners, count);
-    saveResults(runners, count);
-
-    free(runners);
+    free(zavodnici);
     return 0;
 }
